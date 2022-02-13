@@ -36,6 +36,6 @@ jobs:
         GITHUB_TOKEN: ${{ github.token }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: updater.tar.gz
-        asset_name: updater.tar.gz
+        asset_path: updater-${{ env.RELEASE_VERSION }}.tar.gz
+        asset_name: updater-${{ env.RELEASE_VERSION }}.tar.gz
         asset_content_type: application/gzip
