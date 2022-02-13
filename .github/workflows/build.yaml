@@ -10,12 +10,12 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
+    - name: Set env
+      run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
     - name: Prepare Go
       uses: actions/setup-go@v2
       with:
         go-version: '1.17'
-    - name: Build
-      run: go build ./cmd/updater/main.go
     - name: Make
       run: make release
     - name: Release
@@ -24,8 +24,8 @@ jobs:
       with:
         draft: false
         prerelease: false
-        release_name: test
-        tag_name: ${{ github.ref }}
+        release_name: ${{ env.RELEASE_VERSION }}
+        tag_name: ${{ env.RELEASE_VERSION }}
       env:
         GITHUB_TOKEN: ${{ github.token }}
     - name: Upload Artifact
