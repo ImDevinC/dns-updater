@@ -3,6 +3,7 @@ package resolver_test
 import (
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"testing"
@@ -46,7 +47,7 @@ func TestGetPublicIP(t *testing.T) {
 		}
 		ip, err := resolver.GetPublicIP(client)
 		assertNoError(t, err)
-		assertStringEqual(t, ip, "127.0.0.1")
+		assertStringEqual(t, ip.String(), "127.0.0.1")
 	})
 
 	t.Run("invalid IP returns an error", func(t *testing.T) {
@@ -76,7 +77,8 @@ func TestUpdateIP(t *testing.T) {
 		},
 	}
 	t.Run("update IP works", func(t *testing.T) {
-		err := resolver.UpdateIPAddress("127.0.0.2", "test.domain.com", "Z08273531INAXSGGH8YPN", mockClient)
+		ip := net.ParseIP("127.0.0.2")
+		err := resolver.UpdateIPAddress(ip, "test.domain.com", "Z08273531INAXSGGH8YPN", mockClient)
 		assertNoError(t, err)
 	})
 }
