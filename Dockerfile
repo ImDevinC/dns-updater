@@ -1,6 +1,6 @@
 ARG GO_VERSION=1.22
 
-FROM golang:${GO_VERSION} as builder
+FROM --platform=${BUILDPLATFORM:-linux/amd64} golang:${GO_VERSION} as builder
 
 WORKDIR /src
 
@@ -10,9 +10,9 @@ RUN go mod download
 
 COPY ./ ./
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm go build -o /updater ./cmd/updater/main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -o /updater ./cmd/updater/main.go
 
-FROM gcr.io/distroless/static
+FROM --platform=${BUILDPLATFORM:-linux/amd64} gcr.io/distroless/static
 
 USER nonroot:nonroot
 
