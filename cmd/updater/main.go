@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"path"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -17,21 +20,64 @@ import (
 func main() {
 	file := flag.String("config", "", "Config file")
 	force := flag.Bool("force", false, "ignore current IP")
+	dir := flag.String("dir", "", "Config dir")
 	flag.Parse()
-	if *file == "" {
-		log.Fatal("no config file provided")
+	if *file != "" && *dir != "" {
+		log.Fatal("only one of -config or -dir can be provided")
 	}
-	config, err := util.LoadConfig(".", *file)
+	var err error
+	files := []string{}
+	if *file != "" {
+		files = append(files, *file)
+	} else if *dir != "" {
+		files, err = getFilesFromDir(*dir)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		log.Fatal("no config file or dir provided")
+	}
+	didError := false
+	for _, f := range files {
+		if err := processFile(f, *force); err != nil {
+			log.Printf("%s: %s\n", f, err)
+			didError = true
+		}
+	}
+	if didError {
+		os.Exit(1)
+	}
+}
+
+func getFilesFromDir(dir string) ([]string, error) {
+	files := []string{}
+	dirList, err := os.ReadDir(dir)
 	if err != nil {
-		log.Fatalf("failed to load config: %s", err)
+		return []string{}, fmt.Errorf("readdir: %w", err)
+	}
+	for _, d := range dirList {
+		if d.IsDir() {
+			continue
+		}
+		if strings.HasSuffix(strings.ToLower(d.Name()), ".env") {
+			files = append(files, path.Join(dir, d.Name()))
+		}
+	}
+	return files, nil
+}
+
+func processFile(file string, force bool) error {
+	config, err := util.LoadConfig(".", file)
+	if err != nil {
+		return fmt.Errorf("failed to load config: %s", err)
 	}
 	currentIP, err := resolver.GetPublicIP(http.DefaultClient)
 	if err != nil {
-		log.Fatalf("failed to get public IP: %s", err)
+		return fmt.Errorf("failed to get public IP: %s", err)
 	}
 	dnsIPs, err := resolver.GetCurrentDNSAddress(config.Address)
 	if err != nil {
-		log.Fatalf("failed to get current DNS addresses: %s", err)
+		return fmt.Errorf("failed to get current DNS addresses: %s", err)
 	}
 	sameIP := false
 	for _, ip := range dnsIPs {
@@ -40,9 +86,9 @@ func main() {
 			break
 		}
 	}
-	if !*force && sameIP {
+	if !force && sameIP {
 		log.Printf("Current IP %s matches IP for %s, no work needed\n", currentIP, config.Address)
-		return
+		return nil
 	}
 	log.Printf("Need to update IP for %s to %s from %s\n", config.Address, currentIP, dnsIPs)
 	var updater resolver.Updater
@@ -50,20 +96,21 @@ func main() {
 	case "cloudflare":
 		updater, err = buildCloudflareUpdater(config.CloudflareApiToken)
 		if err != nil {
-			log.Fatalf("could not initialize updater based on type \"%s\": %s", config.Type, err)
+			return fmt.Errorf("could not initialize updater based on type \"%s\": %s", config.Type, err)
 		}
 	default:
 		updater = buildRoute53Updater()
 	}
 	if updater == nil {
-		log.Fatalf("could not initialize updater based on type \"%s\"", config.Type)
+		return fmt.Errorf("could not initialize updater based on type \"%s\"", config.Type)
 	}
 
 	err = updater.Update(context.TODO(), currentIP, config.Address, config.ZoneID)
 	if err != nil {
-		log.Fatalf("failed to update IP address: %s", err)
+		return fmt.Errorf("failed to update IP address: %s", err)
 	}
 	log.Println("Update completed successfully")
+	return nil
 }
 
 func buildCloudflareUpdater(token string) (resolver.Updater, error) {
