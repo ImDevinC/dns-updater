@@ -15,6 +15,7 @@ var ErrNoRecord = errors.New("no record found")
 var _ Updater = (*CloudflareUpdater)(nil)
 
 type CloudflareClient interface {
+	CreateDNSRecord(context.Context, *cloudflare.ResourceContainer, cloudflare.CreateDNSRecordParams) (cloudflare.DNSRecord, error)
 	UpdateDNSRecord(context.Context, *cloudflare.ResourceContainer, cloudflare.UpdateDNSRecordParams) (cloudflare.DNSRecord, error)
 	ListDNSRecords(context.Context, *cloudflare.ResourceContainer, cloudflare.ListDNSRecordsParams) ([]cloudflare.DNSRecord, *cloudflare.ResultInfo, error)
 }
@@ -32,7 +33,7 @@ func (r *CloudflareUpdater) Update(ctx context.Context, ip net.IP, name string, 
 		return fmt.Errorf("get existing record: %w", err)
 	}
 	if errors.Is(err, ErrNoRecord) {
-		return r.createNewRecord()
+		return r.createNewRecord(ctx, ip, name, zoneID)
 	}
 	return r.updateRecord(ctx, ip, name, zoneID, recordID)
 }
@@ -50,8 +51,19 @@ func (r *CloudflareUpdater) getExistingRecord(ctx context.Context, name string, 
 	return "", ErrNoRecord
 }
 
-func (r *CloudflareUpdater) createNewRecord() error {
-	return errors.New("not implemented")
+func (r *CloudflareUpdater) createNewRecord(ctx context.Context, ip net.IP, name string, zoneID string) error {
+	params := cloudflare.CreateDNSRecordParams{
+		Type:    "A",
+		Name:    name,
+		Content: ip.String(),
+		TTL:     300,
+		Comment: "updated by dnsupdater",
+	}
+	_, err := r.Client.CreateDNSRecord(ctx, cloudflare.ZoneIdentifier(zoneID), params)
+	if err != nil {
+		return fmt.Errorf("updating DNS record: %w", err)
+	}
+	return nil
 }
 
 func (r *CloudflareUpdater) updateRecord(ctx context.Context, ip net.IP, name string, zoneID string, recordID string) error {
