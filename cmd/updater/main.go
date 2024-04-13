@@ -16,6 +16,7 @@ import (
 
 func main() {
 	file := flag.String("config", "", "Config file")
+	force := flag.Bool("force", false, "ignore current IP")
 	flag.Parse()
 	if *file == "" {
 		log.Fatal("no config file provided")
@@ -39,7 +40,7 @@ func main() {
 			break
 		}
 	}
-	if sameIP {
+	if !*force && sameIP {
 		log.Printf("Current IP %s matches IP for %s, no work needed\n", currentIP, config.Address)
 		return
 	}

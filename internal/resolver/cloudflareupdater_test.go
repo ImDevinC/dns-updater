@@ -11,8 +11,9 @@ import (
 )
 
 type MockCloudflareClient struct {
-	onUpdateDNSRecord func(ctx context.Context, rc *cloudflare.ResourceContainer, params cloudflare.UpdateDNSRecordParams) (cloudflare.DNSRecord, error)
-	onListDNSRecords  func(ctx context.Context, rc *cloudflare.ResourceContainer, params cloudflare.ListDNSRecordsParams) ([]cloudflare.DNSRecord, *cloudflare.ResultInfo, error)
+	onUpdateDNSRecord func(context.Context, *cloudflare.ResourceContainer, cloudflare.UpdateDNSRecordParams) (cloudflare.DNSRecord, error)
+	onListDNSRecords  func(context.Context, *cloudflare.ResourceContainer, cloudflare.ListDNSRecordsParams) ([]cloudflare.DNSRecord, *cloudflare.ResultInfo, error)
+	onCreateDNSRecord func(context.Context, *cloudflare.ResourceContainer, cloudflare.CreateDNSRecordParams) (cloudflare.DNSRecord, error)
 }
 
 func (m *MockCloudflareClient) UpdateDNSRecord(ctx context.Context, rc *cloudflare.ResourceContainer, params cloudflare.UpdateDNSRecordParams) (cloudflare.DNSRecord, error) {
@@ -27,6 +28,13 @@ func (m *MockCloudflareClient) ListDNSRecords(ctx context.Context, rc *cloudflar
 		return m.onListDNSRecords(ctx, rc, params)
 	}
 	return []cloudflare.DNSRecord{}, nil, errors.New("not implemented")
+}
+
+func (m *MockCloudflareClient) CreateDNSRecord(ctx context.Context, rc *cloudflare.ResourceContainer, params cloudflare.CreateDNSRecordParams) (cloudflare.DNSRecord, error) {
+	if m.onCreateDNSRecord != nil {
+		return m.onCreateDNSRecord(ctx, rc, params)
+	}
+	return cloudflare.DNSRecord{}, errors.New("not implemented")
 }
 
 func TestUpdateCloudflare(t *testing.T) {
