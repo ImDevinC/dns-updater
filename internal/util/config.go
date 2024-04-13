@@ -5,8 +5,10 @@ import (
 )
 
 type Config struct {
-	ZoneID  string `mapstructure:"ZONE_ID"`
-	Address string `mapstructure:"ADDRESS"`
+	ZoneID             string `mapstructure:"ZONE_ID"`
+	Address            string `mapstructure:"ADDRESS"`
+	Type               string `mapstructure:"TYPE"`
+	CloudflareApiToken string `mapstructure:"CLOUDFLARE_API_TOKEN"`
 }
 
 func LoadConfig(path string, file string) (Config, error) {

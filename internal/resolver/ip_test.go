@@ -3,12 +3,10 @@ package resolver_test
 import (
 	"errors"
 	"io"
-	"net"
 	"net/http"
 	"strings"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/service/route53"
 	"github.com/imdevinc/dns-updater/internal/resolver"
 )
 
@@ -24,17 +22,6 @@ func (c *MockHttpClient) Do(req *http.Request) (*http.Response, error) {
 }
 
 var _ resolver.HttpClient = (*MockHttpClient)(nil)
-
-type MockRoute53Client struct {
-	onMockChangeResourceRecordSets func(input *route53.ChangeResourceRecordSetsInput) (*route53.ChangeResourceRecordSetsOutput, error)
-}
-
-func (c *MockRoute53Client) ChangeResourceRecordSets(input *route53.ChangeResourceRecordSetsInput) (*route53.ChangeResourceRecordSetsOutput, error) {
-	if c.onMockChangeResourceRecordSets != nil {
-		return c.onMockChangeResourceRecordSets(input)
-	}
-	return nil, errors.New("not implemented")
-}
 
 func TestGetPublicIP(t *testing.T) {
 	t.Run("valid IP returns a string", func(t *testing.T) {
@@ -60,26 +47,6 @@ func TestGetPublicIP(t *testing.T) {
 		}
 		_, err := resolver.GetPublicIP(client)
 		assertErrorIs(t, err, resolver.ErrInvalidIP)
-	})
-}
-
-func TestUpdateIP(t *testing.T) {
-	mockClient := &MockRoute53Client{
-		onMockChangeResourceRecordSets: func(input *route53.ChangeResourceRecordSetsInput) (*route53.ChangeResourceRecordSetsOutput, error) {
-			assertLen(t, len(input.ChangeBatch.Changes), 1)
-			assertStringEqual(t, *input.ChangeBatch.Changes[0].Action, "UPSERT")
-			assertStringEqual(t, *input.ChangeBatch.Changes[0].ResourceRecordSet.Name, "test.domain.com")
-			assertStringEqual(t, *input.ChangeBatch.Changes[0].ResourceRecordSet.Type, "A")
-			assertInt64Equal(t, *input.ChangeBatch.Changes[0].ResourceRecordSet.TTL, 300)
-			assertLen(t, len(input.ChangeBatch.Changes[0].ResourceRecordSet.ResourceRecords), 1)
-			assertStringEqual(t, *input.ChangeBatch.Changes[0].ResourceRecordSet.ResourceRecords[0].Value, "127.0.0.2")
-			return &route53.ChangeResourceRecordSetsOutput{}, nil
-		},
-	}
-	t.Run("update IP works", func(t *testing.T) {
-		ip := net.ParseIP("127.0.0.2")
-		err := resolver.UpdateIPAddress(ip, "test.domain.com", "Z08273531INAXSGGH8YPN", mockClient)
-		assertNoError(t, err)
 	})
 }
 
@@ -116,6 +83,14 @@ func assertLen(t testing.TB, got int, want int) {
 }
 
 func assertInt64Equal(t testing.TB, got int64, want int64) {
+	t.Helper()
+	if got != want {
+		t.Errorf("expected %d, got %d", want, got)
+		t.FailNow()
+	}
+}
+
+func assertIntEqual(t testing.TB, got int, want int) {
 	t.Helper()
 	if got != want {
 		t.Errorf("expected %d, got %d", want, got)
