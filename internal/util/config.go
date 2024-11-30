@@ -9,6 +9,7 @@ type Config struct {
 	Address            string `mapstructure:"ADDRESS"`
 	Type               string `mapstructure:"TYPE"`
 	CloudflareApiToken string `mapstructure:"CLOUDFLARE_API_TOKEN"`
+	HostName           string `mapstructure:"HOSTNAME"`
 }
 
 func LoadConfig(path string, file string) (Config, error) {
