@@ -90,7 +90,7 @@ func processFile(file string, force bool) error {
 		log.Printf("Current IP %s matches IP for %s, no work needed\n", currentIP, config.Address)
 		return nil
 	}
-	log.Printf("Need to update IP for %s to %s from %s\n", config.HostName, currentIP, dnsIPs)
+	log.Printf("Need to update IP for %s to %s from %s\n", config.Record, currentIP, dnsIPs)
 	var updater resolver.Updater
 	switch strings.ToLower(config.Type) {
 	case "cloudflare":
@@ -105,7 +105,7 @@ func processFile(file string, force bool) error {
 		return fmt.Errorf("could not initialize updater based on type \"%s\"", config.Type)
 	}
 
-	err = updater.Update(context.TODO(), currentIP, config.HostName, config.ZoneID)
+	err = updater.Update(context.TODO(), currentIP, config.Record, config.ZoneID)
 	if err != nil {
 		return fmt.Errorf("failed to update IP address: %s", err)
 	}
